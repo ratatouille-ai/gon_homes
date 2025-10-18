@@ -1,14 +1,45 @@
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent, ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import CurrentAdminUserService from "../services/CurrentAdminUserService";
+import RatatouilleApi from "../../api/index";
 
 export default defineComponent({
   name: "Home",
-  computed: {
-    adminUser() {
-      console.log("ADMIN USER", CurrentAdminUserService.getAdminUser());
-      return CurrentAdminUserService.getAdminUser();
-    },
+  setup() {
+    const router = useRouter();
+    const adminUserCount = ref<number>(0);
+    const loadingCount = ref<boolean>(true);
+
+    const adminUser = CurrentAdminUserService.getAdminUser();
+
+    const fetchAdminUserCount = async () => {
+      try {
+        loadingCount.value = true;
+        const result = await RatatouilleApi.doQuery("SELECT COUNT(*) as total FROM admin_users");
+        adminUserCount.value = parseInt(result[0]?.total || "0");
+      } catch (error) {
+        console.error("Error fetching admin user count:", error);
+        adminUserCount.value = 0;
+      } finally {
+        loadingCount.value = false;
+      }
+    };
+
+    const navigateToAdminUsers = () => {
+      router.push("/admin-users");
+    };
+
+    onMounted(() => {
+      fetchAdminUserCount();
+    });
+
+    return {
+      adminUser,
+      adminUserCount,
+      loadingCount,
+      navigateToAdminUsers,
+    };
   },
 });
 </script>
@@ -36,6 +67,19 @@ export default defineComponent({
           </a>
         </p>
       </div>
+
+      <div class="card card-stats" @click="navigateToAdminUsers" role="button" tabindex="0" @keyup.enter="navigateToAdminUsers">
+        <div class="stats-header">
+          <div class="stats-icon">👥</div>
+          <div class="stats-content">
+            <h3>Admin Users</h3>
+            <div class="stats-count">
+              <span v-if="loadingCount" class="loading-text">Loading...</span>
+              <span v-else class="count-number">{{ adminUserCount }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -55,6 +99,67 @@ export default defineComponent({
 .card-links,
 .card-getting-started {
   grid-column: span 1;
+}
+
+.card-stats {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.card-stats:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 167, 111, 0.15);
+}
+
+.card-stats:focus {
+  outline: 3px solid rgba(0, 167, 111, 0.3);
+  outline-offset: 2px;
+}
+
+.stats-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.stats-icon {
+  font-size: 32px;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e6f7f1 0%, #ccebe0 100%);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.stats-content {
+  flex: 1;
+}
+
+.stats-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.stats-count {
+  font-size: 28px;
+  font-weight: 700;
+  color: #00a76f;
+  line-height: 1;
+}
+
+.loading-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+}
+
+.count-number {
+  color: #00a76f;
 }
 
 .links-list {
@@ -85,6 +190,20 @@ export default defineComponent({
 @media (max-width: 768px) {
   .content-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .stats-header {
+    gap: 12px;
+  }
+  
+  .stats-icon {
+    font-size: 24px;
+    width: 48px;
+    height: 48px;
+  }
+  
+  .stats-count {
+    font-size: 24px;
   }
 }
 </style>
